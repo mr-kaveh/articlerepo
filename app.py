@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, flash, redirect, url_for, session, logging
+from flask import Flask, render_template, request, flash, redirect, url_for, session
 from data import Articles
 from flask_mysqldb import MySQL
 from passlib.hash import sha256_crypt
@@ -16,6 +16,7 @@ app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 # init mysql
 mysql = MySQL(app)
 
+# Data Dictionary
 data = Articles()
 
 
@@ -43,16 +44,23 @@ def article():
     Brings up the List of Articles
     :return: articles.html Template
     '''
+
+    # Creating a Cursor
     cur = mysql.connection.cursor()
 
+    # Getting The list of Articles from Database
     result = cur.execute('select * from articles')
+
+    # Fetch Query Results
     articles = cur.fetchall()
-    if result > 0:
+
+    if result > 0:  # In Case, There are Results
         return render_template('articles.html', articles=articles)
-    else:
+    else:  # No Results
         msg = 'No Articles Found'
         return render_template('articles.html', msg=msg)
 
+    # Closing the Cursor
     cur.close()
 
 
@@ -63,8 +71,14 @@ def articles(id):
     :param id: id of each Article
     :return: equivalent artcle based on id (article.html)
     '''
+
+    # Creating a Cursor
     cur = mysql.connection.cursor()
-    result = cur.execute('select * from articles where id=%s', [id])
+
+    # Querying Database
+    cur.execute('select * from articles where id=%s', [id])
+
+    # Fetch Query Result
     article = cur.fetchone()
 
     return render_template('article.html', article=article)
@@ -75,22 +89,33 @@ def register():
     '''
     Registration of user to Database, there will be
     An insert to theusers Table will be Commited.
-    :return: redirection to index
+    :return: redirects to index(home)
     '''
+
+    # Getting form from Frontend
     form = RegisterForm.Form(request.form)
+
+    # Evaluates the Method & the Validation of the Form
     if request.method == 'POST' and form.validate():
-        name = form.name.data
-        email = form.email.data
-        username = form.username.data
-        password = sha256_crypt.encrypt(str(form.password.data))
+        name = form.name.data  # gets the name from frontend form
+        email = form.email.data  # gets the email from frontend form
+        username = form.username.data  # gets the username from frontend form
+        password = sha256_crypt.encrypt(
+            str(form.password.data))  # gets the password from frontend form
+
         # Create Cursor
         cur = mysql.connection.cursor()
+
+        # Inserts into Database (Registration Process)
         cur.execute('insert into users(name, email, username, password)' \
                     'values(%s, %s, %s, %s)', (name, email, username, password))
+
         # Commits To Database
         mysql.connection.commit()
+
         # Closes Connection
         cur.close()
+
         flash('You Are Now Registered', 'Success')
         return redirect(url_for('index'))
 
@@ -99,9 +124,18 @@ def register():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    '''
+    Login Process, Including Database Query
+    and Auhtentication of The User
+    :return: login.html Template
+    '''
+
+    # Evaluates the Method
     if request.method == 'POST':
-        username = request.form['username']
-        password_candidate = request.form['password']
+        username = request.form['username']  # gets the username from request
+        password_candidate = request.form['password']  # gets the password from request
+
+        # Create Cursor
         cur = mysql.connection.cursor()
 
         result = cur.execute('select * from users where username = %s', [username])
@@ -174,7 +208,8 @@ def add_article():
 
         cur = mysql.connection.cursor()
 
-        cur.execute('insert into articles (title, body, author) values(%s, %s, %s)', (title, body, session['username']))
+        cur.execute('insert into articles (title, body, author) values(%s, %s, %s)',
+                    (title, body, session['username']))
 
         mysql.connection.commit()
 
