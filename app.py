@@ -2,8 +2,7 @@ from flask import Flask, render_template, request, flash, redirect, url_for, ses
 from data import Articles
 from flask_mysqldb import MySQL
 from passlib.hash import sha256_crypt
-import RegisterForm
-import AddArticle
+import RegisterForm, AddArticle, EditArticle
 from functools import wraps
 
 app = Flask(__name__)
@@ -65,10 +64,10 @@ def articles(id):
     :return: equivalent artcle based on id (article.html)
     '''
     cur = mysql.connection.cursor()
-    result = cur.execute('select * from articles where id=%s',[id])
+    result = cur.execute('select * from articles where id=%s', [id])
     article = cur.fetchone()
 
-    return render_template('article.html', article=article )
+    return render_template('article.html', article=article)
 
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -155,6 +154,7 @@ def dashboard():
 
     result = cur.execute('select * from articles')
     articles = cur.fetchall()
+
     if result > 0:
         return render_template('dashboard.html', articles=articles)
     else:
@@ -184,6 +184,53 @@ def add_article():
 
         return redirect(url_for('dashboard'))
     return render_template('add_article.html', form=form)
+
+
+@app.route('/edit_article/<string:id>', methods=['GET', 'POST'])
+@is_logged_in
+def edit_article(id):
+    cur = mysql.connection.cursor()
+    result = cur.execute('select * from articles where id = %s', [id])
+    article = cur.fetchone()
+
+    form = EditArticle.ArticleForm(request.form)
+
+    form.title.data = article['title']
+    form.body.data = article['body']
+
+    if request.method == 'POST' and form.validate():
+        title = request.form['title']
+        body = request.form['body']
+
+        cur = mysql.connection.cursor()
+
+        cur.execute('update articles set title=%s, body=%s where id = %s', (title, body, id))
+
+        mysql.connection.commit()
+
+        cur.close()
+
+        flash('Article Updated', 'success')
+
+        return redirect(url_for('dashboard'))
+    return render_template('edit_article.html', form=form)
+
+
+@app.route('/delete_article/<string:id>', methods=['GET', 'POST'])
+@is_logged_in
+def delete_article(id):
+    cur = mysql.connection.cursor()
+
+    cur.execute('delete from articles where id = %s', [id])
+
+    mysql.connection.commit()
+
+    cur.close()
+
+    flash('Article Deleted', 'success')
+
+    return redirect(url_for('dashboard'))
+
 
 if __name__ == '__main__':
     app.secret_key = 'secretkey'
